@@ -1,0 +1,1111 @@
+---
+title: "Sparse Matrix in RcppArmadillo"
+output:
+  pdf_document: default
+  html_document: default
+date: '`r format(Sys.time(), "%F %T %z")`'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+# Sparse Matrix in RcppArmadillo
+
+## Introduction
+
+The following documentation is intended for RcppArmadillo sparse matrix users' convenience based on the documentation of library [Matrix](https://cran.r-project.org/web/packages/Matrix/Matrix.pdf) and [Armadillo](http://arma.sourceforge.net/docs.html#SpMat). The [Unofficial Rcpp API](https://github.com/binxiangni/rcpp-api/blob/master/rcpp-api-docs.Rmd) also helps during integration of this documentation. Suggestions and corrections are welcomed.  
+
+## Overview
+
+- [Sparse Matrix in "RcppArmadillo"](#smir)
+    - [Sparse Matrix in "Matrix"](#smim)
+    - [Sparse Matrix in "Armadillo"](#smia)
+- [Member functions](#member-funcs)
+    - [Element Access](#elem-access)
+    - [Fundamental Arithmetic Operations](#operations)
+    - [Submatrix Views](#sub-views)
+    - [Diagonal Views](#diag-views)
+    - [Savings & Loadings](#save-load)
+    - [Element-wise Functions](#elem-wise-funcs)
+    - [Scalar Functions](#scalar-funcs)
+    - [Vector Valued Functions](#vec-funcs)
+    - [Matrix Valued Functions](#mat-funcs)
+    - [Generated Matrices](#generated-mats)
+    - [Eigen & Singular Value Decomposition](#evd-svd)
+    - [Solution of Sparse Linear Systems](#solve)
+    - [Miscellaneous](#misc)
+
+## Sparse Matrix in "RcppArmadillo" {#smir}
+### Sparse Matrix in "Matrix" {#smim}
+There are 31 types of sparse matrices in the package "Matrix" that can be directly used. But for now, only 12 of them are supported in RcppArmadillo: [dgCMatrix](#dgc), [dtCMatrix](#dtc), [dsCMatrix](#dsc), [dgTMatrix](#dgt), [dtTMatrix](#dtt), [dsTMatrix](#dst), [dgRMatrix](#dgr), [dtRMatrix](#dtr), [dsRMatrix](#dsr), [indMatrix](#ind), [pMatrix](#pm), and [ddiMatrix](#ddi). 
+
+#### dgCMatrix {#dgc}
+- Description: general column-oriented numeric sparse matrix. 
+- Constructor    
+    - `new("dgCMatrix", ...)`  
+    - `Matrix(*, sparse = TRUE)`  
+    - `sparseMatrix()`
+- Coercion    
+    - `as(*, "CsparseMatrix")`  
+    - `as(*, "dgCMatrix")`  
+- Examples   
+```{r dgCMatrix}
+(dgC <- new("dgCMatrix", i = as.integer(c(0, 0, 1)), 
+            p = as.integer(c(0, 1, 3)), 
+            x = as.double(c(1, 2, 1)), 
+            Dim = as.integer(c(3, 2))))
+
+# Output
+# 3 x 2 sparse Matrix of class "dgCMatrix"
+#         
+# [1,] 1 2
+# [2,] . 1
+# [3,] . .
+
+x <- matrix(c(1, 0, 0, 2, 1, 0), nrow = 3)
+(SM <- Matrix(x, sparse = TRUE))
+
+# Output
+# 3 x 2 sparse Matrix of class "dgCMatrix"
+#         
+# [1,] 1 2
+# [2,] . 1
+# [3,] . .
+
+i <- c(1,3:8); j <- c(2,9,6:10); x <- 7 * (1:7)
+(A <- sparseMatrix(i, j, x = x))  
+
+# Output
+# 8 x 10 sparse Matrix of class "dgCMatrix"
+#                              
+# [1,] . 7 . . .  .  .  .  .  .
+# [2,] . . . . .  .  .  .  .  .
+# [3,] . . . . .  .  .  . 14  .
+# [4,] . . . . . 21  .  .  .  .
+# [5,] . . . . .  . 28  .  .  .
+# [6,] . . . . .  .  . 35  .  .
+# [7,] . . . . .  .  .  . 42  .
+# [8,] . . . . .  .  .  .  . 49
+
+m <- matrix(c(1, 0, 0, 2, 1, 0), 3, 2)
+(dgC <- as(m, "CsparseMatrix"))
+
+# Output
+# 3 x 2 sparse Matrix of class "dgCMatrix"
+#         
+# [1,] 1 2
+# [2,] . 1
+# [3,] . .
+
+(dgC <- as(m, "dgCMatrix"))
+
+# Output
+# 3 x 2 sparse Matrix of class "dgCMatrix"
+#         
+# [1,] 1 2
+# [2,] . 1
+# [3,] . .
+
+```
+
+#### dtCMatrix {#dtc}
+- Description: triangular column-oriented numeric sparse matrix. 
+- Constructor   
+    - `new("dtCMatrix", ...)`    
+    - `Matrix(*, sparse = TRUE)`
+    - `sparseMatrix(*, triangular=TRUE)`
+- Coercion  
+    - `as(*, "triangularMatrix")`  
+    - `as(*, "dtCMatrix")`  
+- Examples  
+```{r dtCMatrix}
+(t5 <- new("dtCMatrix", Dim = c(5L, 5L), uplo = "L",
+                  x = c(10, 1, 3, 10, 1, 10, 1, 10, 10),
+                  i = c(0L, 2L, 4L, 1L, 3L,2L, 4L, 3L, 4L),
+                  p = c(0L, 3L, 5L, 7:9)))
+
+# Output
+# 5 x 5 sparse Matrix of class "dtCMatrix"
+#                    
+# [1,] 10  .  .  .  .
+# [2,]  . 10  .  .  .
+# [3,]  1  . 10  .  .
+# [4,]  .  1  . 10  .
+# [5,]  3  .  1  . 10
+
+x <- matrix(c(2:0, 1), nrow = 2)
+(dtC <- Matrix(x, sparse = TRUE))
+
+# Output
+# 2 x 2 sparse Matrix of class "dtCMatrix"
+#         
+# [1,] 2 .
+# [2,] 1 1
+
+i <- c(1,3:8); j <- c(2,9,6:10); x <- 7 * (1:7)
+(tA <- sparseMatrix(i, j, x = x, triangular= TRUE))
+
+# Output
+# 10 x 10 sparse Matrix of class "dtCMatrix"
+#                               
+#  [1,] . 7 . . .  .  .  .  .  .
+#  [2,] . . . . .  .  .  .  .  .
+#  [3,] . . . . .  .  .  . 14  .
+#  [4,] . . . . . 21  .  .  .  .
+#  [5,] . . . . .  . 28  .  .  .
+#  [6,] . . . . .  .  . 35  .  .
+#  [7,] . . . . .  .  .  . 42  .
+#  [8,] . . . . .  .  .  .  . 49
+#  [9,] . . . . .  .  .  .  .  .
+# [10,] . . . . .  .  .  .  .  .
+
+dgC <- as(x, "dgCMatrix")
+(dtC <- as(dgC, "triangularMatrix"))
+# Output
+# 2 x 2 sparse Matrix of class "dtCMatrix"
+#         
+# [1,] 2 .
+# [2,] 1 1
+
+(dtC <- as(dgC, "dtCMatrix"))
+# Output
+# 2 x 2 sparse Matrix of class "dtCMatrix"
+#         
+# [1,] 2 .
+# [2,] 1 1
+```
+
+#### dsCMatrix {#dsc}
+- Description: symmetric column-oriented numeric sparse matrix. 
+- Constructor  
+    - `new("dsCMatrix", ...)`  
+    - `Matrix(*, sparse = TRUE)`  
+    - `sparseMatrix(*, symmetric = TRUE)`  
+- Coercion  
+    - `as(*, "symmetricMatrix")`   
+    - `as(*, "dsCMatrix")`   
+- Examples  
+```{r dsCMatrix}
+(dsCMatrix <- new("dsCMatrix", 
+                  i = c(0L, 1L, 0L, 2L), 
+                  p = c(0L, 1L, 2L, 4L), 
+                  x = rep(5, 4), 
+                  Dim = c(3L, 3L)))
+
+# Output
+# 3 x 3 sparse Matrix of class "dsCMatrix"
+#           
+# [1,] 5 . 5
+# [2,] . 5 .
+# [3,] 5 . 5
+
+x <- matrix(c(rep(c(5, 0), 4), 5), nrow = 3)
+(dsC <- Matrix(x, sparse = TRUE))
+
+# Output
+# 3 x 3 sparse Matrix of class "dsCMatrix"
+#           
+# [1,] 5 . 5
+# [2,] . 5 .
+# [3,] 5 . 5
+
+i <- c(1,3:8); j <- c(2,9,6:10); x <- 7 * (1:7)
+(sA <- sparseMatrix(i, j, x = x, symmetric = TRUE))
+
+# Output
+# 10 x 10 sparse Matrix of class "dsCMatrix"
+#                                  
+#  [1,] . 7  .  .  .  .  .  .  .  .
+#  [2,] 7 .  .  .  .  .  .  .  .  .
+#  [3,] . .  .  .  .  .  .  . 14  .
+#  [4,] . .  .  .  . 21  .  .  .  .
+#  [5,] . .  .  .  .  . 28  .  .  .
+#  [6,] . .  . 21  .  .  . 35  .  .
+#  [7,] . .  .  . 28  .  .  . 42  .
+#  [8,] . .  .  .  . 35  .  .  . 49
+#  [9,] . . 14  .  .  . 42  .  .  .
+# [10,] . .  .  .  .  .  . 49  .  .
+
+dgC <- as(x, "dgCMatrix")
+(dsC <- as(dgC, "symmetricMatrix"))
+
+# Output
+# 3 x 3 sparse Matrix of class "dsCMatrix"
+#           
+# [1,] 5 . 5
+# [2,] . 5 .
+# [3,] 5 . 5
+
+(dsC <- as(x, "dsCMatrix"))
+
+# Output
+# 3 x 3 sparse Matrix of class "dsCMatrix"
+#           
+# [1,] 5 . 5
+# [2,] . 5 .
+# [3,] 5 . 5
+```
+
+#### dgTMatrix {#dgt}
+- Description: general numeric sparse matrix in triplet form. 
+- Constructor    
+    - `new("dgTMatrix", ...)`  
+    - `sparseMatrix(*, giveCsparse=FALSE)` 
+    - `spMatrix()`
+- Coercion  
+    - `as(*, "TsparseMatrix")`
+    - `as(*, "dgTMatrix")`  
+- Examples   
+```{r dgTMatrix}
+(T2 <- new("dgTMatrix",
+          i = c(1L,1L,0L,3L,3L),
+          j = c(2L,2L,4L,0L,0L), 
+          x=10*1:5, Dim=4:5))
+
+# Output
+# 4 x 5 sparse Matrix of class "dgTMatrix"
+#                  
+# [1,]  . .  . . 30
+# [2,]  . . 30 .  .
+# [3,]  . .  . .  .
+# [4,] 90 .  . .  .
+
+(m <- sparseMatrix(i= 1:8,j=2:9,
+                   x=c(0:2,3:-1),giveCsparse=FALSE))
+
+# Output
+# 8 x 9 sparse Matrix of class "dgTMatrix"
+#                        
+# [1,] . 0 . . . . . .  .
+# [2,] . . 1 . . . . .  .
+# [3,] . . . 2 . . . .  .
+# [4,] . . . . 3 . . .  .
+# [5,] . . . . . 2 . .  .
+# [6,] . . . . . . 1 .  .
+# [7,] . . . . . . . 0  .
+# [8,] . . . . . . . . -1
+
+(m <- spMatrix(8,9, i= 1:8, j=2:9, x = c(0:2,3:-1)))
+
+# Output
+# 8 x 9 sparse Matrix of class "dgTMatrix"
+#                        
+# [1,] . 0 . . . . . .  .
+# [2,] . . 1 . . . . .  .
+# [3,] . . . 2 . . . .  .
+# [4,] . . . . 3 . . .  .
+# [5,] . . . . . 2 . .  .
+# [6,] . . . . . . 1 .  .
+# [7,] . . . . . . . 0  .
+# [8,] . . . . . . . . -1
+
+x <- matrix(c(1, 0, 0, 2, 1, 0), nrow = 3)
+(dgT <- as(x, "TsparseMatrix"))
+
+# Output
+# 3 x 2 sparse Matrix of class "dgTMatrix"
+#         
+# [1,] 1 2
+# [2,] . 1
+# [3,] . .
+
+(dgT <- as(x, "dgTMatrix"))
+# Output
+# 3 x 2 sparse Matrix of class "dgTMatrix"
+#         
+# [1,] 1 2
+# [2,] . 1
+# [3,] . .
+```
+
+#### dtTMatrix {#dtt}
+- Description: triangular numeric sparse matrix in triplet form. 
+- Constructor    
+    - `new("dtTMatrix", ...)`  
+    - `sparseMatrix(*, triangular=TRUE, giveCsparse=FALSE)`  
+- Coercion
+    - `as(*, "triangularMatrix")`
+    - `as(*, "dtTMatrix")`  
+- Examples   
+```{r dtTMatrix}
+(t1 <- new("dtTMatrix", x= c(3,7), 
+          i= 0:1, j=3:2, Dim= as.integer(c(4,4))))
+
+# Output
+# 4 x 4 sparse Matrix of class "dtTMatrix"
+#             
+# [1,] . . . 3
+# [2,] . . 7 .
+# [3,] . . . .
+# [4,] . . . .
+
+i <- c(1,3:8); j <- c(2,9,6:10); x <- 7 * (1:7)
+(tA <- sparseMatrix(i, j, x = x, 
+                    triangular= TRUE, giveCsparse = FALSE))
+
+# Output
+# 10 x 10 sparse Matrix of class "dtTMatrix"
+#                               
+#  [1,] . 7 . . .  .  .  .  .  .
+#  [2,] . . . . .  .  .  .  .  .
+#  [3,] . . . . .  .  .  . 14  .
+#  [4,] . . . . . 21  .  .  .  .
+#  [5,] . . . . .  . 28  .  .  .
+#  [6,] . . . . .  .  . 35  .  .
+#  [7,] . . . . .  .  .  . 42  .
+#  [8,] . . . . .  .  .  .  . 49
+#  [9,] . . . . .  .  .  .  .  .
+# [10,] . . . . .  .  .  .  .  .
+
+mtxt <- c("1 0 0 3",
+          "0 1 7 0",
+          "0 0 1 0",
+          "0 0 0 1")
+M <- as.matrix(read.table(text=mtxt))
+dimnames(M) <- NULL
+dgT <- as(M, "dgTMatrix")
+
+(dtT <- as(dgT, "triangularMatrix"))
+
+# Output
+# 4 x 4 sparse Matrix of class "dtTMatrix"
+#             
+# [1,] 1 . . 3
+# [2,] . 1 7 .
+# [3,] . . 1 .
+# [4,] . . . 1
+
+(dtT <- as(M, "dtTMatrix"))
+
+# Output
+# 4 x 4 sparse Matrix of class "dtTMatrix"
+#             
+# [1,] 1 . . 3
+# [2,] . 1 7 .
+# [3,] . . 1 .
+# [4,] . . . 1
+```
+
+#### dsTMatrix {#dst}
+- Description: symmetric numeric sparse matrix in triplet form. 
+- Constructor    
+    - `new("dsTMatrix", ...)`  
+    - `sparseMatrix(*, symmetric=TRUE, giveCsparse=FALSE)`  
+- Coercion    
+    - `as(*, "symmetricMatrix")`
+    - `as(*, "dsTMatrix")`  
+- Examples   
+```{r dsTMatrix}
+(dsT <- new("dsTMatrix", i=as.integer(c(0,1,0,2,1,3,0,2,4)),
+           j=as.integer(c(0,1,2,2,3,3,4,4,4)),
+           x=as.double(c(10,10,1,10,1,10,3,1,10)),
+           Dim=as.integer(c(5, 5))))
+
+# Output
+# 5 x 5 sparse Matrix of class "dsTMatrix"
+#                    
+# [1,] 10  .  1  .  3
+# [2,]  . 10  .  1  .
+# [3,]  1  . 10  .  1
+# [4,]  .  1  . 10  .
+# [5,]  3  .  1  . 10
+
+i <- c(1,3:8); j <- c(2,9,6:10); x <- 7 * (1:7)
+(sA <- sparseMatrix(i, j, x = x, 
+                    symmetric = TRUE, giveCsparse = FALSE))
+
+# Output
+# 10 x 10 sparse Matrix of class "dsTMatrix"
+#                                  
+#  [1,] . 7  .  .  .  .  .  .  .  .
+#  [2,] 7 .  .  .  .  .  .  .  .  .
+#  [3,] . .  .  .  .  .  .  . 14  .
+#  [4,] . .  .  .  . 21  .  .  .  .
+#  [5,] . .  .  .  .  . 28  .  .  .
+#  [6,] . .  . 21  .  .  . 35  .  .
+#  [7,] . .  .  . 28  .  .  . 42  .
+#  [8,] . .  .  .  . 35  .  .  . 49
+#  [9,] . . 14  .  .  . 42  .  .  .
+# [10,] . .  .  .  .  .  . 49  .  .
+
+mm <- Matrix(toeplitz(c(10, 0, 1, 0, 3)), sparse = TRUE)
+mT <- as(mm, "dgTMatrix")
+(symM <- as(mT, "symmetricMatrix"))
+
+# Output
+# 5 x 5 sparse Matrix of class "dsTMatrix"
+#                    
+# [1,] 10  .  1  .  3
+# [2,]  . 10  .  1  .
+# [3,]  1  . 10  .  1
+# [4,]  .  1  . 10  .
+# [5,]  3  .  1  . 10
+
+(dsT <- as(mT, "dsTMatrix"))
+
+# Output
+# 5 x 5 sparse Matrix of class "dsTMatrix"
+#                    
+# [1,] 10  .  1  .  3
+# [2,]  . 10  .  1  .
+# [3,]  1  . 10  .  1
+# [4,]  .  1  . 10  .
+# [5,]  3  .  1  . 10
+
+```
+
+#### dgRMatrix {#dgr}
+- Description: general row-oriented numeric sparse matrix. 
+- Constructor    
+    - `new("dgRMatrix", ...)`  
+- Coercion    
+    - `as(*, "dgRatrix")`  
+- Examples  
+```{r dgRMatrix}
+(dgR <- new("dgRMatrix", j=as.integer(c(0,2,1,3)),
+            p=as.integer(c(0,2,3,3,4)),
+            x=as.double(c(3,1,2,1)),
+            Dim=as.integer(rep(4,2))))
+
+# Output
+# 4 x 4 sparse Matrix of class "dgRMatrix"
+#             
+# [1,] 3 . 1 .
+# [2,] . 2 . .
+# [3,] . . . .
+# [4,] . . . 1
+
+m <- matrix(c(3,0,0,0,0,2,0,0,1,0,0,0,0,0,0,1), nrow=4)
+(dgR <- as(m, "dgRMatrix"))
+
+# Output
+# 4 x 4 sparse Matrix of class "dgRMatrix"
+#             
+# [1,] 3 . 1 .
+# [2,] . 2 . .
+# [3,] . . . .
+# [4,] . . . 1
+```
+
+#### dtRMatrix {#dtr}
+- Description: triangular row-oriented numeric sparse matrix. 
+- Constructor    
+    - `new("dtRMatrix", ...)`  
+- Examples  
+```{r dtRMatrix}
+(m2 <- new("dtRMatrix", Dim = c(2L,2L),
+           x = c(5, 1:2), p = c(0L,2:3), j= c(0:1,1L)))
+
+# Output
+# 2 x 2 sparse Matrix of class "dtRMatrix"
+#         
+# [1,] 5 1
+# [2,] . 2
+```
+
+#### dsRMatrix {#dsr}
+- Description: symmetric row-oriented numeric sparse matrix. 
+- Constructor    
+    - `new("dsRMatrix", ...)`  
+- Coercion    
+    - `as("dsCMatrix", "dsRMatrix")`  
+- Examples  
+```{r dsRMatrix}
+(m2 <- new("dsRMatrix", Dim = c(2L,2L),
+                  x = c(3,1), j = c(1L,1L), p = 0:2))
+
+# Output
+# 2 x 2 sparse Matrix of class "dsRMatrix"
+#         
+# [1,] . 3
+# [2,] 3 1
+
+m <- matrix(c(0, 3, 3, 1), nrow = 2)
+dsC <- as(m, "dsCMatrix")
+(dsR <- as(dsC, "dsRMatrix"))
+
+# Output
+# 2 x 2 sparse Matrix of class "dsRMatrix"
+#         
+# [1,] . 3
+# [2,] 3 1
+```
+
+#### indMatrix {#ind}
+- Description: index matrix.  
+- Constructor    
+    - `new("indMatrix", ...)`  
+- Coercion    
+    - `as(*, "indMatrix")`  
+- Examples  
+```{r indMatrix}
+(ind <- new("indMatrix", perm = 2:4, Dim = 3:4))
+
+# Output
+# 3 x 4 sparse Matrix of class "indMatrix"
+#             
+# [1,] . | . .
+# [2,] . . | .
+# [3,] . . . |
+
+(ind <- as(2:4, "indMatrix"))
+
+# Output
+# 3 x 4 sparse Matrix of class "indMatrix"
+#             
+# [1,] . | . .
+# [2,] . . | .
+# [3,] . . . |
+```
+
+#### pMatrix {#pm}
+- Description: permutation matrix. 
+- Constructor    
+    - `new("pMatrix", ...)`  
+- Coercion    
+    - `as(*, "pMatrix")`  
+- Examples  
+```{r pMatrix}
+(p <- new("pMatrix", perm = c(2L, 3L, 1L), Dim = rep(3L, 2)))
+
+# Output
+# 3 x 3 sparse Matrix of class "pMatrix"
+#           
+# [1,] . | .
+# [2,] . . |
+# [3,] | . .
+
+(p1 <- as(c(2,3,1), "pMatrix"))
+
+# Output
+# 3 x 3 sparse Matrix of class "pMatrix"
+#           
+# [1,] . | .
+# [2,] . . |
+# [3,] | . .
+```
+
+#### ddiMatrix {#ddi}
+- Description: numeric diagonal Matrix.  
+- Constructor    
+    - `new("ddiMatrix", ...)`
+    - `Diagonal(*)`
+- Examples  
+```{r ddiMatrix}
+(ddi <- new("ddiMatrix", diag = "U"))
+
+# Output
+# 5 x 5 diagonal matrix of class "ddiMatrix"
+#      [,1] [,2] [,3] [,4] [,5]
+# [1,]    1    .    .    .    .
+# [2,]    .    1    .    .    .
+# [3,]    .    .    1    .    .
+# [4,]    .    .    .    1    .
+# [5,]    .    .    .    .    1
+
+(ddi <- new("ddiMatrix", x = 10*(1:5), Dim = rep(5L, 2)))
+
+# Output
+# 5 x 5 diagonal matrix of class "ddiMatrix"
+#      [,1] [,2] [,3] [,4] [,5]
+# [1,]   10    .    .    .    .
+# [2,]    .   20    .    .    .
+# [3,]    .    .   30    .    .
+# [4,]    .    .    .   40    .
+# [5,]    .    .    .    .   50
+
+
+(I5 <- Diagonal(5))
+
+# Output
+# 5 x 5 diagonal matrix of class "ddiMatrix"
+#      [,1] [,2] [,3] [,4] [,5]
+# [1,]    1    .    .    .    .
+# [2,]    .    1    .    .    .
+# [3,]    .    .    1    .    .
+# [4,]    .    .    .    1    .
+# [5,]    .    .    .    .    1
+
+(D5 <- Diagonal(x = 10*(1:5)))
+
+# Output
+# 5 x 5 diagonal matrix of class "ddiMatrix"
+#      [,1] [,2] [,3] [,4] [,5]
+# [1,]   10    .    .    .    .
+# [2,]    .   20    .    .    .
+# [3,]    .    .   30    .    .
+# [4,]    .    .    .   40    .
+# [5,]    .    .    .    .   50
+```
+
+### Sparse Matrix in "Armadillo" {#smia}  
+In the library "Armadillo", sparse matrix is currently stored as [CSC](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_column_.28CSC_or_CCS.29) format. Such kind of format is quite similar to numeric column-oriented sparse matrix in the library "Matrix"(including dgCMatrix, dtCMatrix and dsCMatrix). But provided the index in C++ starts from 0, the element access should be specially paid attention to when RcppArmadillo is applied.
+
+## Member functions {##member-funcs}
+### Element Access {#elem-access}
+- Description: access the element of a sparse matrix (the index should start from 0).
+- Functions
+    - `(n)`: access the n-th element under the assumption of a flat layout, with column-major ordering of data and a bounds check.  
+    - `.at(n)` or `[n]`: similar to `(n)` without a bounds check.  
+    - `(i,j)`:  access the element in i-th row and j-th column with a bounds check.  
+    - `.at(i,j)`:  similar to `(i, j)` without a bounds check.  
+- Examples  
+```{Rcpp elem_access}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+double elem(sp_mat X, int row_number, int col_number) {
+  return X(row_number, col_number); 
+}
+
+/*** R
+library(Matrix)
+dgC <- Matrix(c(0,0,2:0), 3,5)
+elem(dgC, 0, 1)
+*/
+
+# Output
+# [1] 1
+
+```
+
+### Operators {#operations}
+- Operators   
+    - `+`: Addition of two matrices.  
+    - `-`: Subtract of a matrx from another.    
+    - `*`: Multiplication of two matrices.  
+    - `/`: Element-wise division of a matrix by another.    
+    - `%`: Element-wise multiplication of two matrices.    
+    - `==`: Elevaluate if two matrices are equal.  
+    - `!=`: Elevaluate if two matrices are not equal.   
+    - `<=`: Elevaluate if a matrix is less than or equal to another.  
+    - `>=`: Elevaluate if a matrix is greater than or equal to another.    
+    - `<`: Elevaluate if a matrix is less than another.  
+    - `>`: Elevaluate if a matrix is greater than another.  
+- Examples  
+```{Rcpp add&multiply}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+sp_mat add(sp_mat A, sp_mat B) {
+  return A + B;
+}
+
+sp_mat multiply(sp_mat A, sp_mat B) {
+  return A * B;
+}
+
+/*** R
+
+*/
+
+# Output
+
+```
+
+### Submatrix Views {#sub-views}
+- Description: Access the row, the column or the submatrix of a sparse matrix.  
+- Functions  
+    - `X.col(j)`: access the j-th column.  
+    - `X.row(i)`: access the i-th row.  
+    - `X.cols(first_col, last_col)`: access the columns starting from first_col to last_col.    
+    - `X.rows(first_row, last_row)`: access the rows starting from first_row to last_row.  
+    - `X.submat(first_row, first_col, last_row, last_col)`: access the submatrix starting from first_row and first_col to last_row and last_col.  
+    - `X(span(first_row, last_row), span(first_col, last_col))`: access the submatrix starting from first_row and first_col to last_row and last_col.    
+    - `X(first_row, first_col, size(n_rows, n_cols))`: access the submatrix starting from first_row and first_col with size of n_rows and n_cols.  
+    - `X(first_row, first_col, size(Y))`: access the submatrix starting from first_row and first_col with size of another matrix Y.  
+    - `X.head_cols(number_of_cols)`: access the head number_of_cols columns.  
+    - `X.head_rows(number_of_rows)`: access the head number_of_rows rows.   
+    - `X.tail_cols(number_of_cols)`: access the tail number_of_cols columns.  
+    - `X.tail_rows(number_of_rows)`: access the tail number_of_rows rows.  
+    - `X.unsafe_col(j)`: access the j-th column.   
+    
+- Examples
+```{Rcpp sub-views}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+vec col(sp_mat X, int col_number) {
+  return X.col(col_number);
+}
+
+//[[Rcpp::export]]
+vec row(sp_mat X, int row_number) {
+  return X.row(row_number);
+}
+
+//[[Rcpp::export]]
+sp_mat cols(sp_mat X, int first_col, int last_col) {
+  return X.cols(first_col, last_col);
+}
+
+//[[Rcpp::export]]
+sp_mat rows(sp_mat X, int first_row, int last_row) {
+  return X.rows(first_row, last_row);
+}
+
+//[[Rcpp::export]]
+sp_mat submat(sp_mat X, int first_row, int first_col, int last_row, int last_col) {
+  return X.submat(first_row, first_col, last_row, last_col);
+}
+
+//[[Rcpp:export]]
+sp_mat head_cols(sp_mat X, int number_of_cols) {
+  return X.head_cols(number_of_cols);
+}
+
+//[[Rcpp::export]]
+sp_mat head_rows(sp_mat X, int number_of_rows) {
+  return X.head_rows(number_of_rows);
+}
+
+//[[Rcpp::export]]
+sp_mat tail_cols(sp_mat X, int number_of_cols) {
+  return X.tail_cols(number_of_cols);
+}
+```
+
+### Diagonal Views {#diag-views}
+- Description: access the diagonal value of a sparse matrix. 
+- Function
+    - `.diag()`: access the main diagonal of a sparse matrix.  
+    - `.diag(k)`:  
+          - When k = 0, access the main diagonal of a sparse matrix.  
+          - When k > 0, access the k-th super-diagonal of a sparse matrix.   
+          - When k < 0, access the k-th sub-diagonal of a sparse matrix.  
+- Examples
+```{Rcpp diag-views}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+vec diag(sp_mat X, int k) {
+  return X.diag(k);
+}
+```
+
+### Savings & Loadings {#save-load}
+- Description:
+- Function
+    - `.save(name)`
+    - `.save(name, file_type)`
+    - `.save(stream)`
+    - `.save(stream, file_type)`
+    - `.load(name)`
+    - `.load(name, file_type)`
+    - `.load(stream)`
+    - `.load(stream, file_type)`
+- Examples
+```{Rcpp save-load}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+void save(sp_mat X, std::string name) {
+  X.save(name);
+}
+
+//[[Rcpp::export]]
+sp_mat load(sp_mat X, std::string name) {
+  X.load(name); 
+  return X;
+}
+```
+
+### Element-wise Functions {#elem-wise-funcs}
+- Description: functions that undertakes element-wise operations.
+- Functions
+    - `abs(X)`: obtain the absolute value of each element.
+    - `sqrt(X)`: obtain the square root of each element.
+    - `square(X)`: obtain the squared value of each element.
+    - `floor(X)`: (To be continued)
+    - `ceil(X)`: (To be continued)
+    - `round(X)`: round to nearest integer, with halfway cases rounded away from zero.  
+    - `trunc(X)`: round to nearest integer, towards zero.  
+    - `sign(X)`: sign function.
+- Examples
+```{Rcpp abs}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+sp_mat abs(sp_mat X) {
+  return abs(X);
+}
+
+//[[Rcpp::export]]
+sp_mat sqrt(sp_mat X) {
+  return sqrt(X);
+}
+
+//[[Rcpp::export]]
+sp_mat square(sp_mat X) {
+  return square(X);
+}
+
+//[[Rcpp::export]]
+sp_mat floor(sp_mat X) {
+  return floor(X);
+}
+
+//[[Rcpp::export]]
+sp_mat ceil(sp_mat X) {
+  return ceil(X);
+}
+
+//[[Rcpp::export]]
+sp_mat round(sp_mat X) {
+  return round(X);
+}
+
+//[[Rcpp::export]]
+sp_mat trunc(sp_mat X) {
+  return trunc(X);
+}
+
+//[[Rcpp::export]]
+sp_mat sign(sp_mat X) {
+  return sign(X);
+}
+```
+
+### Scalar Functions {#scalar-funcs}
+- Description: include functions that generate a scalar.  
+- Functions  
+    - `accu(X)`: accumulate all elements of a sparse matrix X.   
+    - `dot(A, B)`: obtain the dot product of sparse matrices A and B.  
+    - `norm(X, p)`: obtain the p-norm of a sparse matrix X. p can be one of 1, 2, "inf", "fro" and can also be omitted, in which p is 2 by default.  
+    - `trace(X)`: obtain the trace of a sparse matrix.  
+- Examples  
+```{Rcpp accu}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+double accu(sp_mat X) {
+  return accu(X);
+}
+
+//[[Rcpp::export]]
+double dot(sp_mat A, sp_mat B) {
+  return dot(A, B);
+}
+
+//[[Rcpp::export]]
+double norm(sp_mat X, int p) {
+  return norm(X, p);
+}
+
+//[[Rcpp::export]]
+double trace(sp_mat X) {
+  return trace(X);
+}
+```
+
+### Vector Valued Functions {#vec-funcs}
+- Description: include functions that generate a vector.   
+- Functions  
+    - `min(X, dim)`: obtain the maximum value of each column when dim = 0, or each row when dim = 1. The dim is optional; by default dim = 0 is used.  
+    - `max(X, dim)`: obtain the minimum value of each column when dim = 0, or each row when dim = 1. The dim is optional; by default dim = 0 is used.     
+    - `nonzeros(X)`: obtain the non-zero values of a sparse matrix X.  
+    - `sum(X, dim)`: obtain the sum of all elements in each column when dim = 0, or each row when dim = 1. The dim is optional; by default dim = 0 is used.  
+    - `mean(X, dim)`: obtain the mean of all elements in each column when dim = 0, or each row when dim = 1. The dim is optional; by default dim = 0 is used.  
+    - `var(X, dim)`: obtain the variance of all elements in each column when dim = 0, or each row when dim = 1. The dim is optional; by default dim = 0 is used.  
+- Examples  
+```{Rcpp max}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+vec max(sp_mat X, int dim) {
+  return max(X, dim);
+}
+
+//[[Rcpp::export]]
+vec min(sp_mat X, int dim) {
+  return min(X, dim);
+}
+
+//[[Rcpp::export]]
+vec nonzeros(sp_mat X) {
+  return nonzeros(X);
+}
+
+//[[Rcpp::export]]
+vec sum(sp_mat X, int dim) {
+  return sum(X, dim);
+}
+
+//[[Rcpp::export]]
+vec mean(sp_mat X, int dim) {
+  return mean(X, dim);
+}
+
+//[[Rcpp::export]]
+vec var(sp_mat X, int dim) {
+  return var(X, dim);
+}
+```
+
+### Matrix Valued Functions {#mat-funcs}
+- Description: include functions that generate a matrix.  
+- Functions  
+    - `diagmat(X, k)`: create a matrix with the k-th diagonal containing a copy of the k-th diagonal of X; all other elements are set to zeros. The k is optional; by default k = 0 is used.   
+    - `trimatu(X, k)`: create a matrix with the upper triangular part above k-th diagonal containing a copy of the upper triangular part above k-th diagonal of X; all other elements are set to zeros. The k is optional; by default k = 0 is used.   
+    - `trimatl(X, k)`: create a matrix with the lower triangular part below k-th diagonal containing a copy of the lower triangular part above k-th diagonal of X; all other elements are set to zeros. The k is optional; by default k = 0 is used.  
+    - `symmatu(X)`: create a symmetric matrix by reflecting the upper triangular part to the lower triangular one.  
+    - `symmatl(X)`: create a symmetric matrix by reflecting the lower triangular part to the upper triangular one.  
+    - `join_rows(A, B)`: horizontal concatenation.   
+    - `join_cols(A, B)`: vertical concatenation.  
+    - `repmat(X, num_copies_per_row, num_copies_per_col)`: create a matrix by replicating the matrix with each row copied num_copies_per_row times and each column copied num_copies_per_col times.  
+    - `reshape(X, n_rows, n_cols)`: create a n_rows by n_cols matrix whose elements are from X in a column-oriented way.  
+    - `reshape(X, size(X))`: similar to `reshape(X, n_rows, n_cols)`, but the size of the new matrix is size of the matrix X.  
+    - `resize(X, n_rows, n_cols)`: create a n_rows by n_cols matrix whose elements are from X in a column-oriented way.  
+    - `resize(X, size(X))`: similar to `reshape(X, n_rows, n_cols)`, but the size of the new matrix is size of the matrix X.
+    - `.t()`: create a transposed copy of a matrix.  
+    - `trans(X)`: create a transposed copy of a matrix X.  
+- Examples  
+```{Rcpp diagmat}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+sp_mat diagmat(sp_mat X) {
+  return diagmat(X);
+}
+
+//[[Rcpp::export]]
+sp_mat trimatu(sp_mat X) {
+  return trimatu(X);
+}
+
+//[[Rcpp::export]]
+sp_mat trimatl(sp_mat X) {
+  return trimatl(X);
+}
+
+//[[Rcpp::export]]
+sp_mat symmatu(sp_mat X) {
+  return symmatu(X);
+}
+
+//[[Rcpp::export]]
+sp_mat symmatl(sp_mat X) {
+  return symmatl(X);
+}
+
+//[[Rcpp::export]]
+sp_mat join_rows(sp_mat A, sp_mat B) {
+  return join_rows(A, B);
+}
+
+//[[Rcpp::export]]
+sp_mat join_cols(sp_mat A, sp_mat B) {
+  return join_cols(A, B);
+}
+
+//[[Rcpp::export]]
+sp_mat repmat(sp_mat A, int num_copies_per_row, int num_copies_per_col) {
+  return repmat(A, num_copies_per_row, num_copies_per_col);
+}
+
+//[[Rcpp::export]]
+sp_mat reshape(sp_mat A, int n_rows, int n_cols) {
+  return reshape(A, n_rows, n_cols);
+}
+
+//[[Rcpp::export]]
+sp_mat resize(sp_mat A, int n_rows, int n_cols) {
+  return resize(A, n_rows, n_cols);
+}
+
+//[[Rcpp::export]]
+sp_mat trans(sp_mat A) {
+  return trans(A);
+}
+```
+
+### Generated Matrices {#generated-mats}
+- Description: create a new sparse matrix based on different specifications.  
+- Functions  
+    - `speye(n_rows, n_cols)`: create a n_rows by n_cols sparse matrix with unit values in main diagonal and zeros off the diagonal.  
+    - `speye(size(X))`: similar to `speye(n_rows, n_cols)`, but the size is same as that of the matrix X.  
+    - `spones(X)`: create a sparse matrix similar to the sparse matrix X, but with non-zero elements set to one.  
+    - `sprandu(n_rows, n_cols, density)`: create a n_rows by n_cols sparse matrix with non-zero elements drawn from a uniform distribution in the [0, 1] interval.  
+    - `sprandu(size(X), density)`: similar to `sprandu(n_rows, n_cols, density)`, but the size of the new matrix is the same as the matrix X.  
+    - `sprandn(n_rows, n_cols, density)`: create a n_rows by n_cols sparse matrix with non-zero elements drawn from a standard normal distribution.  
+    - `sprandn(size(X), density)`: similar to `sprandu(n_rows, n_cols, density)`, but the size of the new matrix is the same as the matrix X.  
+- Examples  
+```{Rcpp speye}
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+using namespace Rcpp;
+using namespace arma;
+
+//[[Rcpp::export]]
+sp_mat speye(int n_rows, int n_cols) {
+  return speye(n_rows, n_cols);
+}
+
+//[[Rcpp::export]]
+sp_mat spones(sp_mat A) {
+  return spones(A);
+}
+
+//[[Rcpp::export]]
+sp_mat sprandu(int n_rows, int n_cols, double density) {
+  return sprandu(n_rows, n_cols, density);
+}
+
+//[[Rcpp::export]]
+sp_mat sprandn(int n_rows, int n_cols, double density) {
+  return sprandn(n_rows, n_cols, density);
+}
+```
+
+### Eigen & Singular Value Decomposition {#evd-svd}
+- Description:  
+- Functions  
+    - `eigs_sym()`  
+    - `eigs_gen()`  
+    - `svds()`  
+- Examples
+### Solution of Sparse Linear Systems {#solve}
+- Description:  
+- Functions  
+    - `spsolve()`  
+- Examples  
+### Miscellaneous {#misc}  
+
