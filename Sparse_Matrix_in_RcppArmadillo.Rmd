@@ -460,6 +460,7 @@ mT <- as(mm, "dgTMatrix")
 - Constructor    
     - `new("dgRMatrix", ...)`  
 - Coercion    
+    - `as(*, "RsparseMatrix")`  
     - `as(*, "dgRatrix")`  
 - Examples  
 ```{r dgRMatrix}
@@ -640,7 +641,7 @@ dsC <- as(m, "dsCMatrix")
 ```
 
 ### Sparse Matrix in "Armadillo" {#smia}  
-In the library "Armadillo", sparse matrix is currently stored as [CSC](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_column_.28CSC_or_CCS.29) format. Such kind of format is quite similar to numeric column-oriented sparse matrix in the library "Matrix"(including dgCMatrix, dtCMatrix and dsCMatrix). But provided the index in C++ starts from 0, the element access should be specially paid attention to when RcppArmadillo is applied. When a sparse matrix from the library "Matrix" is passed through RcppArmadillo, it will be converted to CSC format, then undertaken operations on, and finally ouput as dgCMatrix in R. 
+In the library "Armadillo", sparse matrix is currently stored as [CSC](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_column_.28CSC_or_CCS.29) format. Such kind of format is quite similar to numeric column-oriented sparse matrix in the library "Matrix" (including dgCMatrix, dtCMatrix and dsCMatrix). But user should keep in mind that indexes in matrix slicing in Armadillo are 0-based (as usual in C++). Interestingly that non-zero elements indices in "Matrix" package are also 0-based. So physical representation of CSC matrices in "Matrix" package and Armadillo is exactly the same. When a sparse matrix from the library "Matrix" is passed through RcppArmadillo, it will be converted or mapped to CSC format, then undertaken operations on, and finally ouput as dgCMatrix in R. 
 
 ## Member functions {##member-funcs}
 ### Element Access {#elem-access}
