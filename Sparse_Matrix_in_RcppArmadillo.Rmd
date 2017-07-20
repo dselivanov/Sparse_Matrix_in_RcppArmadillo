@@ -640,7 +640,7 @@ dsC <- as(m, "dsCMatrix")
 ```
 
 ### Sparse Matrix in "Armadillo" {#smia}  
-In the library "Armadillo", sparse matrix is currently stored as [CSC](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_column_.28CSC_or_CCS.29) format. Such kind of format is quite similar to numeric column-oriented sparse matrix in the library "Matrix"(including dgCMatrix, dtCMatrix and dsCMatrix). But provided the index in C++ starts from 0, the element access should be specially paid attention to when RcppArmadillo is applied.
+In the library "Armadillo", sparse matrix is currently stored as [CSC](https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_column_.28CSC_or_CCS.29) format. Such kind of format is quite similar to numeric column-oriented sparse matrix in the library "Matrix"(including dgCMatrix, dtCMatrix and dsCMatrix). But provided the index in C++ starts from 0, the element access should be specially paid attention to when RcppArmadillo is applied. When a sparse matrix from the library "Matrix" is passed through RcppArmadillo, it will be converted to CSC format, then undertaken operations on, and finally ouput as dgCMatrix in R. 
 
 ## Member functions {##member-funcs}
 ### Element Access {#elem-access}
@@ -700,16 +700,32 @@ sp_mat add(sp_mat A, sp_mat B) {
   return A + B;
 }
 
+//[[Rcpp::export]]
 sp_mat multiply(sp_mat A, sp_mat B) {
   return A * B;
 }
 
 /*** R
-
+dtC <- .sparseDiagonal(4, shape="t")
+dtT <- new("dtTMatrix", x= c(3,7), i= 0:1, j=3:2, Dim= as.integer(c(4,4)))
+add(dtC, dtT)
+multiply(dtC, dtT)
 */
 
 # Output
+# 4 x 4 sparse Matrix of class "dgCMatrix"
+            
+# [1,] 1 . . 3
+# [2,] . 1 7 .
+# [3,] . . 1 .
+# [4,] . . . 1
 
+# 4 x 4 sparse Matrix of class "dgCMatrix"
+            
+# [1,] . . . 3
+# [2,] . . 7 .
+# [3,] . . . .
+# [4,] . . . .
 ```
 
 ### Submatrix Views {#sub-views}
@@ -738,12 +754,12 @@ using namespace Rcpp;
 using namespace arma;
 
 //[[Rcpp::export]]
-vec col(sp_mat X, int col_number) {
+sp_mat col(sp_mat X, int col_number) {
   return X.col(col_number);
 }
 
 //[[Rcpp::export]]
-vec row(sp_mat X, int row_number) {
+sp_mat row(sp_mat X, int row_number) {
   return X.row(row_number);
 }
 
@@ -776,6 +792,24 @@ sp_mat head_rows(sp_mat X, int number_of_rows) {
 sp_mat tail_cols(sp_mat X, int number_of_cols) {
   return X.tail_cols(number_of_cols);
 }
+
+//[[Rcpp::export]]
+sp_mat tail_rows(sp_mat X, int number_of_cols) {
+  return X.tail_rows(number_of_cols);
+}
+
+/*** R
+dsC <- Matrix(toeplitz(c(10, 0, 1, 0, 3)), sparse = TRUE)
+col(dsC, 0)
+row(dsC, 0)
+cols(dsC, 1, 3)
+rows(dsC, 1, 3)
+submat(dsC, 1, 3, 4, 4)
+# head_cols(dsC, 3) Error appears(To be solved)
+head_rows(dsC, 3)
+tail_cols(dsC, 2)
+tail_rows(dsC, 2)
+*/
 ```
 
 ### Diagonal Views {#diag-views}
@@ -798,6 +832,26 @@ using namespace arma;
 vec diag(sp_mat X, int k) {
   return X.diag(k);
 }
+
+/*** R
+library(Matrix)
+n1 <- 10; p <- 6
+set.seed(16)
+a <- rnorm(n1*p)
+a[abs(a) < 0.5] <- 0
+A <- matrix(a,n1,p)
+dgR <- as(A, "dgRMatrix")
+diag(dgR, 0)
+*/
+
+# Output
+#            [,1]
+# [1,]  0.0000000
+# [2,]  0.0000000
+# [3,]  0.0000000
+# [4,] -0.9426955
+# [5,] -0.6308124
+# [6,]  0.6834945
 ```
 
 ### Savings & Loadings {#save-load}
@@ -843,7 +897,7 @@ sp_mat load(sp_mat X, std::string name) {
     - `trunc(X)`: round to nearest integer, towards zero.  
     - `sign(X)`: sign function.
 - Examples
-```{Rcpp abs}
+```{Rcpp elem}
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -851,44 +905,159 @@ using namespace Rcpp;
 using namespace arma;
 
 //[[Rcpp::export]]
-sp_mat abs(sp_mat X) {
+sp_mat abs_(sp_mat X) {
   return abs(X);
 }
 
 //[[Rcpp::export]]
-sp_mat sqrt(sp_mat X) {
+sp_mat sqrt_(sp_mat X) {
   return sqrt(X);
 }
 
 //[[Rcpp::export]]
-sp_mat square(sp_mat X) {
+sp_mat square_(sp_mat X) {
   return square(X);
 }
 
 //[[Rcpp::export]]
-sp_mat floor(sp_mat X) {
+sp_mat floor_(sp_mat X) {
   return floor(X);
 }
 
 //[[Rcpp::export]]
-sp_mat ceil(sp_mat X) {
+sp_mat ceil_(sp_mat X) {
   return ceil(X);
 }
 
 //[[Rcpp::export]]
-sp_mat round(sp_mat X) {
+sp_mat round_(sp_mat X) {
   return round(X);
 }
 
 //[[Rcpp::export]]
-sp_mat trunc(sp_mat X) {
+sp_mat trunc_(sp_mat X) {
   return trunc(X);
 }
 
 //[[Rcpp::export]]
-sp_mat sign(sp_mat X) {
+sp_mat sign_(sp_mat X) {
   return sign(X);
 }
+
+/*** R
+library(Matrix)
+n1 <- 10; p <- 6
+set.seed(16)
+a <- rnorm(n1*p)
+a[abs(a) < 0.5] <- 0
+A <- matrix(a,n1,p)
+dgR <- as(A, "dgRMatrix")
+square_(dgR)
+sqrt_(abs_(dgR))
+floor_(dgR)
+ceil_(dgR)
+round_(dgR)
+trunc_(dgR)
+sign_(dgR)
+*/
+
+# Output
+# > square_(dgR)
+# 10 x 6 sparse Matrix of class "dgCMatrix"
+#                                                                   
+#  [1,] .         3.4120817 2.7152370 0.4522907 1.7565609  .        
+#  [2,] .         .         .         .         4.2647853  0.5667888
+#  [3,] 1.2016900 0.5565717 .         .         .          0.7454344
+#  [4,] 2.0857975 2.7496725 2.1623070 0.8886748 .          0.7025770
+#  [5,] 1.3175121 0.5208806 0.7497807 1.0445474 0.3979243  3.1182337
+#  [6,] .         2.7658367 2.3331554 .         .          0.4671647
+#  [7,] 1.0119366 0.3316718 1.1112914 0.2967889 .          1.3525952
+#  [8,] .         .         1.0610463 .         0.3207457  1.4414448
+#  [9,] 1.0505688 0.2945577 0.7058703 .         0.3237984 10.5594459
+# [10,] 0.3284918 1.2716781 .         .         .          0.4566188
+
+# > sqrt_(abs_(dgR))
+# 10 x 6 sparse Matrix of class "dgCMatrix"
+#                                                                  
+#  [1,] .         1.3591108 1.2836657 0.8200766 1.1512398 .        
+#  [2,] .         .         .         .         1.4370580 0.8676715
+#  [3,] 1.0470034 0.8637345 .         .         .         0.9291853
+#  [4,] 1.2017608 1.2877165 1.2126329 0.9709251 .         0.9155319
+#  [5,] 1.0713680 0.8495414 0.9305368 1.0109555 0.7942370 1.3288537
+#  [6,] .         1.2896048 1.2359074 .         .         0.8267373
+#  [7,] 1.0029709 0.7588870 1.0267317 0.7380944 .         1.0784300
+#  [8,] .         .         1.0149241 .         0.7525584 1.0957198
+#  [9,] 1.0124093 0.7367032 0.9166029 .         0.7543427 1.8026453
+# [10,] 0.7570614 1.0619261 .         .         .         0.8220315
+
+# > floor_(dgR)
+# 10 x 6 sparse Matrix of class "dgCMatrix"
+# [1,]  .  1 -2 -1 -2  .
+#  [2,]  .  .  .  .  2  .
+#  [3,]  1 -1  .  .  .  .
+#  [4,] -2  1  1 -1  .  .
+#  [5,]  1  . -1 -2 -1 -2
+#  [6,]  . -2  1  .  .  .
+#  [7,] -2  .  1  .  .  1
+#  [8,]  .  .  1  .  . -2
+#  [9,]  1 -1  .  .  .  3
+# [10,]  .  1  .  .  . -1
+
+# > ceil_(dgR)
+# 10 x 6 sparse Matrix of class "dgCMatrix"
+                       
+#  [1,]  .  2 -1  . -1  .
+#  [2,]  .  .  .  .  3  1
+#  [3,]  2  .  .  .  .  1
+#  [4,] -1  2  2  .  .  1
+#  [5,]  2  1  . -1  . -1
+#  [6,]  . -1  2  .  .  1
+#  [7,] -1  1  2  1  .  2
+#  [8,]  .  .  2  .  1 -1
+#  [9,]  2  .  1  .  1  4
+# [10,]  1  2  .  .  .  .
+
+# > round_(dgR)
+# 10 x 6 sparse Matrix of class "dgCMatrix"
+#                        
+#  [1,]  .  2 -2 -1 -1  .
+#  [2,]  .  .  .  .  2  1
+#  [3,]  1 -1  .  .  .  1
+#  [4,] -1  2  1 -1  .  1
+#  [5,]  1  1 -1 -1 -1 -2
+#  [6,]  . -2  2  .  .  1
+#  [7,] -1  1  1  1  .  1
+#  [8,]  .  .  1  .  1 -1
+#  [9,]  1 -1  1  .  1  3
+# [10,]  1  1  .  .  . -1
+
+# > trunc_(dgR)
+# 10 x 6 sparse Matrix of class "dgCMatrix"
+                       
+#  [1,]  .  1 -1  . -1  .
+#  [2,]  .  .  .  .  2  .
+#  [3,]  1  .  .  .  .  .
+#  [4,] -1  1  1  .  .  .
+#  [5,]  1  .  . -1  . -1
+#  [6,]  . -1  1  .  .  .
+#  [7,] -1  .  1  .  .  1
+#  [8,]  .  .  1  .  . -1
+#  [9,]  1  .  .  .  .  3
+# [10,]  .  1  .  .  .  .
+
+# > sign_(dgR)
+# 10 x 6 sparse Matrix of class "dgCMatrix"
+#                        
+#  [1,]  .  1 -1 -1 -1  .
+#  [2,]  .  .  .  .  1  1
+#  [3,]  1 -1  .  .  .  1
+#  [4,] -1  1  1 -1  .  1
+#  [5,]  1  1 -1 -1 -1 -1
+#  [6,]  . -1  1  .  .  1
+#  [7,] -1  1  1  1  .  1
+#  [8,]  .  .  1  .  1 -1
+#  [9,]  1 -1  1  .  1  1
+# [10,]  1  1  .  .  . -1
 ```
 
 ### Scalar Functions {#scalar-funcs}
@@ -907,22 +1076,22 @@ using namespace Rcpp;
 using namespace arma;
 
 //[[Rcpp::export]]
-double accu(sp_mat X) {
+double accu_(sp_mat X) {
   return accu(X);
 }
 
 //[[Rcpp::export]]
-double dot(sp_mat A, sp_mat B) {
+double dot_(sp_mat A, sp_mat B) {
   return dot(A, B);
 }
 
 //[[Rcpp::export]]
-double norm(sp_mat X, int p) {
+double norm_(sp_mat X, int p) {
   return norm(X, p);
 }
 
 //[[Rcpp::export]]
-double trace(sp_mat X) {
+double trace_(sp_mat X) {
   return trace(X);
 }
 ```
@@ -945,32 +1114,32 @@ using namespace Rcpp;
 using namespace arma;
 
 //[[Rcpp::export]]
-vec max(sp_mat X, int dim) {
+vec max_(sp_mat X, int dim) {
   return max(X, dim);
 }
 
 //[[Rcpp::export]]
-vec min(sp_mat X, int dim) {
+vec min_(sp_mat X, int dim) {
   return min(X, dim);
 }
 
 //[[Rcpp::export]]
-vec nonzeros(sp_mat X) {
+vec nonzeros_(sp_mat X) {
   return nonzeros(X);
 }
 
 //[[Rcpp::export]]
-vec sum(sp_mat X, int dim) {
+vec sum_(sp_mat X, int dim) {
   return sum(X, dim);
 }
 
 //[[Rcpp::export]]
-vec mean(sp_mat X, int dim) {
+vec mean_(sp_mat X, int dim) {
   return mean(X, dim);
 }
 
 //[[Rcpp::export]]
-vec var(sp_mat X, int dim) {
+vec var_(sp_mat X, int dim) {
   return var(X, dim);
 }
 ```
@@ -1001,57 +1170,57 @@ using namespace Rcpp;
 using namespace arma;
 
 //[[Rcpp::export]]
-sp_mat diagmat(sp_mat X) {
+sp_mat diagmat_(sp_mat X) {
   return diagmat(X);
 }
 
 //[[Rcpp::export]]
-sp_mat trimatu(sp_mat X) {
+sp_mat trimatu_(sp_mat X) {
   return trimatu(X);
 }
 
 //[[Rcpp::export]]
-sp_mat trimatl(sp_mat X) {
+sp_mat trimatl_(sp_mat X) {
   return trimatl(X);
 }
 
 //[[Rcpp::export]]
-sp_mat symmatu(sp_mat X) {
+sp_mat symmatu_(sp_mat X) {
   return symmatu(X);
 }
 
 //[[Rcpp::export]]
-sp_mat symmatl(sp_mat X) {
+sp_mat symmatl_(sp_mat X) {
   return symmatl(X);
 }
 
 //[[Rcpp::export]]
-sp_mat join_rows(sp_mat A, sp_mat B) {
+sp_mat join_rows_(sp_mat A, sp_mat B) {
   return join_rows(A, B);
 }
 
 //[[Rcpp::export]]
-sp_mat join_cols(sp_mat A, sp_mat B) {
+sp_mat join_cols_(sp_mat A, sp_mat B) {
   return join_cols(A, B);
 }
 
 //[[Rcpp::export]]
-sp_mat repmat(sp_mat A, int num_copies_per_row, int num_copies_per_col) {
+sp_mat repmat_(sp_mat A, int num_copies_per_row, int num_copies_per_col) {
   return repmat(A, num_copies_per_row, num_copies_per_col);
 }
 
 //[[Rcpp::export]]
-sp_mat reshape(sp_mat A, int n_rows, int n_cols) {
+sp_mat reshape_(sp_mat A, int n_rows, int n_cols) {
   return reshape(A, n_rows, n_cols);
 }
 
 //[[Rcpp::export]]
-sp_mat resize(sp_mat A, int n_rows, int n_cols) {
+sp_mat resize_(sp_mat A, int n_rows, int n_cols) {
   return resize(A, n_rows, n_cols);
 }
 
 //[[Rcpp::export]]
-sp_mat trans(sp_mat A) {
+sp_mat trans_(sp_mat A) {
   return trans(A);
 }
 ```
@@ -1075,22 +1244,22 @@ using namespace Rcpp;
 using namespace arma;
 
 //[[Rcpp::export]]
-sp_mat speye(int n_rows, int n_cols) {
+sp_mat speye_(int n_rows, int n_cols) {
   return speye(n_rows, n_cols);
 }
 
 //[[Rcpp::export]]
-sp_mat spones(sp_mat A) {
+sp_mat spones_(sp_mat A) {
   return spones(A);
 }
 
 //[[Rcpp::export]]
-sp_mat sprandu(int n_rows, int n_cols, double density) {
+sp_mat sprandu_(int n_rows, int n_cols, double density) {
   return sprandu(n_rows, n_cols, density);
 }
 
 //[[Rcpp::export]]
-sp_mat sprandn(int n_rows, int n_cols, double density) {
+sp_mat sprandn_(int n_rows, int n_cols, double density) {
   return sprandn(n_rows, n_cols, density);
 }
 ```
